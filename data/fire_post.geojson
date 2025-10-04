@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "name": "fire_post_1" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [81.8, 21.8],
+            [83.2, 21.8],
+            [83.2, 23.2],
+            [81.8, 23.2],
+            [81.8, 21.8]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "name": "fire_post_2" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [83.8, 23.8],
+            [85.2, 23.8],
+            [85.2, 25.2],
+            [83.8, 25.2],
+            [83.8, 23.8]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "name": "flood_post_1" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [79.8, 19.8],
+            [81.2, 19.8],
+            [81.2, 21.2],
+            [79.8, 21.2],
+            [79.8, 19.8]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "name": "flood_post_2" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [81.8, 21.8],
+            [83.2, 21.8],
+            [83.2, 23.2],
+            [81.8, 23.2],
+            [81.8, 21.8]
+          ]
+        ]
+      }
+    }
+  ]
+}

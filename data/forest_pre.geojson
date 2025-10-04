@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "name": "forest_pre_1" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [81.0, 21.0],
+            [82.0, 21.0],
+            [82.0, 22.0],
+            [81.0, 22.0],
+            [81.0, 21.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "name": "forest_pre_2" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [83.0, 23.0],
+            [84.0, 23.0],
+            [84.0, 24.0],
+            [83.0, 24.0],
+            [83.0, 23.0]
+          ]
+        ]
+      }
+    }
+  ]
+}
