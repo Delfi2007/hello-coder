@@ -1,0 +1,1678 @@
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import json
+import time
+
+# Page configuration
+st.set_page_config(
+    page_title="SAR Disaster Lens", 
+    layout="wide",
+    page_icon="🛰️",
+    initial_sidebar_state="expanded"
+)
+
+# Professional CSS styling
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    .main {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .feature-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        color: #1e293b;
+        margin: 1rem 0;
+        box-shadow: 0 4px 16px rgba(30, 41, 59, 0.08);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(30, 41, 59, 0.12);
+        border-color: #cbd5e1;
+    }
+    
+    .feature-card h4 {
+        color: #334155;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .sar-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(30, 41, 59, 0.06);
+        border-left: 4px solid #3b82f6;
+        margin: 1rem 0;
+        border: 1px solid #f1f5f9;
+    }
+    
+    .sar-card h4, .sar-card h5 {
+        color: #1e293b;
+        font-weight: 600;
+    }
+    
+    .sar-card p {
+        color: #64748b;
+        margin: 0.5rem 0;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        color: white;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 16px rgba(30, 41, 59, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .metric-card h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        color: #f8fafc;
+    }
+    
+    .metric-card h3 {
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-card p {
+        color: #cbd5e1;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .alert-panel {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        color: white;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 16px rgba(220, 38, 38, 0.2);
+    }
+    
+    .success-panel {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        color: white;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 16px rgba(5, 150, 105, 0.2);
+    }
+    
+    .info-panel {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        color: white;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+    }
+    
+    .hypothesis-panel {
+        background: #fefefe;
+        padding: 2rem;
+        border-radius: 12px;
+        border: 2px solid #10b981;
+        margin: 1rem 0;
+        box-shadow: 0 2px 12px rgba(16, 185, 129, 0.1);
+    }
+    
+    .digital-twin-container {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        padding: 2.5rem;
+        border-radius: 16px;
+        color: white;
+        margin: 2rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .stButton > button {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .nav-section {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .nav-section h4 {
+        color: #1e293b;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .three-js-container {
+        width: 100%;
+        height: 500px;
+        background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+        border-radius: 15px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state for navigation
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'Home'
+
+# Navigation
+def show_navigation():
+    st.sidebar.markdown("""
+    <div class="nav-section">
+        <h4>🧭 Navigation</h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    pages = {
+        'Home': '🏠 Home Dashboard',
+        'SAR Analysis': '📡 SAR Analysis',
+        'Digital Twin': '🌍 3D Digital Twin',
+        'Real-time Monitoring': '⚡ Real-time Monitoring',
+        'AI Predictions': '🤖 AI Predictions',
+        'Data Explorer': '📊 Data Explorer',
+        'Research Lab': '🔬 Research Lab',
+        'Alert System': '🚨 Alert System',
+        'Documentation': '📚 Documentation'
+    }
+    
+    for page_key, page_name in pages.items():
+        if st.sidebar.button(page_name, key=f"nav_{page_key}"):
+            st.session_state.current_page = page_key
+            st.rerun()
+
+# Utility functions
+def generate_sample_sar_data():
+    """Generate realistic SAR data"""
+    dates = pd.date_range('2024-01-01', periods=365, freq='D')
+    np.random.seed(42)
+    
+    base_vv = -12
+    base_vh = -18
+    
+    seasonal_vv = 2 * np.sin(2 * np.pi * np.arange(365) / 365)
+    seasonal_vh = 1.5 * np.sin(2 * np.pi * np.arange(365) / 365)
+    
+    noise_vv = np.random.normal(0, 0.5, 365)
+    noise_vh = np.random.normal(0, 0.4, 365)
+    
+    vv_data = base_vv + seasonal_vv + noise_vv
+    vh_data = base_vh + seasonal_vh + noise_vh
+    
+    coherence = 0.6 + 0.3 * np.cos(2 * np.pi * np.arange(365) / 365) + np.random.normal(0, 0.1, 365)
+    coherence = np.clip(coherence, 0, 1)
+    
+    return pd.DataFrame({
+        'date': dates,
+        'VV': vv_data,
+        'VH': vh_data,
+        'coherence': coherence,
+        'incidence_angle': 35 + 5 * np.sin(2 * np.pi * np.arange(365) / 180) + np.random.normal(0, 1, 365)
+    })
+
+def create_professional_time_series(data):
+    """Create professional time series plot"""
+    fig = make_subplots(
+        rows=3, cols=1,
+        subplot_titles=('VV Polarization (dB)', 'VH Polarization (dB)', 'Interferometric Coherence'),
+        vertical_spacing=0.08
+    )
+    
+    colors = {
+        'VV': '#3b82f6',
+        'VH': '#10b981',
+        'coherence': '#64748b'
+    }
+    
+    fig.add_trace(
+        go.Scatter(
+            x=data['date'], 
+            y=data['VV'], 
+            name='VV Polarization',
+            line=dict(color=colors['VV'], width=2),
+            fill='tonexty',
+            fillcolor='rgba(59, 130, 246, 0.1)'
+        ),
+        row=1, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(
+            x=data['date'], 
+            y=data['VH'], 
+            name='VH Polarization',
+            line=dict(color=colors['VH'], width=2),
+            fill='tonexty',
+            fillcolor='rgba(16, 185, 129, 0.1)'
+        ),
+        row=2, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(
+            x=data['date'], 
+            y=data['coherence'], 
+            name='Coherence',
+            line=dict(color=colors['coherence'], width=2),
+            fill='tonexty',
+            fillcolor='rgba(100, 116, 139, 0.1)'
+        ),
+        row=3, col=1
+    )
+    
+    fig.update_layout(
+        height=650,
+        title_text="SAR Time Series Analysis",
+        title_font=dict(size=20, color='#1e293b', family='Inter'),
+        showlegend=False,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(family='Inter', color='#64748b')
+    )
+    
+    fig.update_xaxes(showgrid=True, gridcolor='#f1f5f9')
+    fig.update_yaxes(showgrid=True, gridcolor='#f1f5f9')
+    
+    return fig
+
+# Show navigation
+show_navigation()
+
+# Page routing with complete implementations
+if st.session_state.current_page == 'Home':
+    st.markdown("## 🏠 SAR Disaster Lens Dashboard")
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("""
+        <div class="metric-card">
+            <h3>🛰️ Active Satellites</h3>
+            <h1>12</h1>
+            <p>Sentinel-1A/B, ALOS-2, TerraSAR-X</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="metric-card">
+            <h3>🌍 Coverage Area</h3>
+            <h1>2.4M</h1>
+            <p>km² under continuous surveillance</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class="metric-card">
+            <h3>🚨 Active Alerts</h3>
+            <h1>7</h1>
+            <p>Critical events being monitored</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+        <div class="metric-card">
+            <h3>🎯 Analysis Accuracy</h3>
+            <h1>94.2%</h1>
+            <p>AI model performance</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Global coverage visualization
+    st.markdown("### 🌍 Global SAR Coverage Network")
+    
+    # Expanded locations data with more detail
+    locations_data = {
+        'lat': [23.8563, 37.7749, 37.7510, 28.3949, -15.7975, 51.5074, 35.6762, -33.9249, 55.7558, 1.3521, -26.2041, 40.7128],
+        'lon': [90.3564, -122.4194, 14.9934, 84.1240, -47.8919, -0.1278, 139.6503, 18.4241, 37.6176, 103.8198, 28.0473, -74.0060],
+        'location': ['Dhaka, Bangladesh', 'San Francisco, CA', 'Naples, Italy', 'Kathmandu, Nepal', 'Brasília, Brazil', 'London, UK', 'Tokyo, Japan', 'Cape Town, SA', 'Moscow, Russia', 'Singapore', 'Johannesburg, SA', 'New York, USA'],
+        'disaster_type': ['Flood Monitoring', 'Wildfire Detection', 'Volcanic Activity', 'Landslide Risk', 'Deforestation', 'Coastal Erosion', 'Earthquake Monitoring', 'Drought Assessment', 'Ice Sheet Tracking', 'Urban Subsidence', 'Mining Impact', 'Hurricane Tracking'],
+        'severity': ['Critical', 'High', 'Moderate', 'High', 'Moderate', 'Low', 'High', 'Moderate', 'Low', 'Moderate', 'High', 'Moderate'],
+        'satellites': ['Sentinel-1A/B', 'ALOS-2, Sentinel-1', 'COSMO-SkyMed', 'TerraSAR-X', 'Sentinel-1A/B', 'Sentinel-1A/B', 'ALOS-2', 'Sentinel-1A/B', 'Sentinel-1A/B', 'TerraSAR-X', 'TerraSAR-X', 'Sentinel-1A/B'],
+        'coverage_area': ['12,500 km²', '8,200 km²', '3,100 km²', '4,600 km²', '25,700 km²', '6,800 km²', '11,200 km²', '15,300 km²', '18,900 km²', '720 km²', '9,400 km²', '13,600 km²'],
+        'last_update': ['2 hours ago', '1 hour ago', '4 hours ago', '3 hours ago', '6 hours ago', '1 hour ago', '30 min ago', '5 hours ago', '2 hours ago', '45 min ago', '3 hours ago', '1 hour ago']
+    }
+    
+    color_map = {'Critical': '#dc2626', 'High': '#f59e0b', 'Moderate': '#3b82f6', 'Low': '#10b981'}
+    size_map = {'Critical': 25, 'High': 20, 'Moderate': 15, 'Low': 12}
+    
+    # Create the interactive map
+    fig = go.Figure()
+    
+    # Add monitoring stations
+    fig.add_trace(go.Scattergeo(
+        lat=locations_data['lat'],
+        lon=locations_data['lon'],
+        text=[f"<b>📍 {location}</b><br>🚨 {disaster}<br>⚠️ Risk Level: {severity}<br>🛰️ Satellites: {satellite}<br>📏 Coverage: {area}<br>🕐 Last Update: {update}" 
+              for location, disaster, severity, satellite, area, update in 
+              zip(locations_data['location'], locations_data['disaster_type'], locations_data['severity'], 
+                  locations_data['satellites'], locations_data['coverage_area'], locations_data['last_update'])],
+        hovertemplate="<b>%{text}</b><extra></extra>",
+        mode='markers+text',
+        marker=dict(
+            size=[size_map[s] for s in locations_data['severity']],
+            color=[color_map[s] for s in locations_data['severity']],
+            line=dict(width=3, color='white'),
+            symbol='circle'
+        ),
+        textposition="top center",
+        textfont=dict(size=10, color='white'),
+        name='Monitoring Stations',
+        showlegend=False
+    ))
+    
+    # Add location labels that are always visible
+    fig.add_trace(go.Scattergeo(
+        lat=locations_data['lat'],
+        lon=locations_data['lon'],
+        text=[location.split(',')[0] for location in locations_data['location']],  # Show just city names
+        mode='text',
+        textposition="bottom center",
+        textfont=dict(size=12, color='#1e293b', family='Inter'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add coverage circles to show monitoring range
+    for i, (lat, lon, severity, area) in enumerate(zip(locations_data['lat'], locations_data['lon'], 
+                                                       locations_data['severity'], locations_data['coverage_area'])):
+        # Extract numeric value from area string
+        area_km = float(area.split()[0].replace(',', ''))
+        # Calculate approximate radius for visualization (rough approximation)
+        radius_deg = np.sqrt(area_km) / 100  # Rough conversion to degrees
+        
+        # Create circle points
+        angles = np.linspace(0, 2*np.pi, 50)
+        circle_lats = lat + radius_deg * np.cos(angles)
+        circle_lons = lon + radius_deg * np.sin(angles)
+        
+        fig.add_trace(go.Scattergeo(
+            lat=circle_lats,
+            lon=circle_lons,
+            mode='lines',
+            line=dict(width=2, color=color_map[severity], dash='dot'),
+            opacity=0.4,
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Add satellite coverage paths (simulated)
+    # Sentinel-1 orbital path simulation
+    orbit_lats = np.linspace(-80, 80, 100)
+    orbit_lons1 = 45 * np.sin(orbit_lats * np.pi / 180) + 30
+    orbit_lons2 = 45 * np.sin(orbit_lats * np.pi / 180) - 60
+    
+    fig.add_trace(go.Scattergeo(
+        lat=orbit_lats,
+        lon=orbit_lons1,
+        mode='lines',
+        line=dict(width=1, color='#64748b', dash='dash'),
+        name='Sentinel-1A Orbit',
+        opacity=0.6,
+        hoverinfo='name'
+    ))
+    
+    fig.add_trace(go.Scattergeo(
+        lat=orbit_lats,
+        lon=orbit_lons2,
+        mode='lines',
+        line=dict(width=1, color='#64748b', dash='dash'),
+        name='Sentinel-1B Orbit',
+        opacity=0.6,
+        hoverinfo='name'
+    ))
+    
+    # Update layout with enhanced styling
+    fig.update_layout(
+        title={
+            'text': '🌍 Global SAR Monitoring Network - Real-time Coverage',
+            'x': 0.5,
+            'font': {'size': 18, 'color': '#1e293b', 'family': 'Inter'}
+        },
+        geo=dict(
+            showland=True,
+            landcolor='#f8fafc',
+            coastlinecolor='#cbd5e1',
+            showocean=True,
+            oceancolor='#e0f2fe',
+            showlakes=True,
+            lakecolor='#bfdbfe',
+            showcountries=True,
+            countrycolor='#e2e8f0',
+            projection_type='natural earth',
+            bgcolor='#ffffff'
+        ),
+        height=550,
+        font=dict(family='Inter', color='#64748b')
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Add legend and statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("""
+        <div class="feature-card" style="text-align: center;">
+            <h4 style="color: #dc2626;">🔴 Critical Sites</h4>
+            <h2>1</h2>
+            <p>Immediate attention required</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="feature-card" style="text-align: center;">
+            <h4 style="color: #f59e0b;">🟡 High Risk Sites</h4>
+            <h2>4</h2>
+            <p>Enhanced monitoring active</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class="feature-card" style="text-align: center;">
+            <h4 style="color: #3b82f6;">🔵 Moderate Risk Sites</h4>
+            <h2>5</h2>
+            <p>Regular monitoring schedule</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+        <div class="feature-card" style="text-align: center;">
+            <h4 style="color: #10b981;">🟢 Low Risk Sites</h4>
+            <h2>2</h2>
+            <p>Baseline monitoring</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+elif st.session_state.current_page == 'SAR Analysis':
+    st.markdown("## 📡 Advanced SAR Data Analysis")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("""
+        <div class="feature-card">
+            <h4>⚙️ Analysis Configuration</h4>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        frequency_bands = st.multiselect(
+            "SAR Frequency Bands",
+            ["L-band (1-2 GHz)", "S-band (2-4 GHz)", "C-band (4-8 GHz)", "X-band (8-12 GHz)"],
+            default=["C-band (4-8 GHz)"]
+        )
+        
+        polarization = st.multiselect(
+            "Polarization Modes",
+            ["VV", "VH", "HH", "HV"],
+            default=["VV", "VH"]
+        )
+        
+        analysis_type = st.selectbox(
+            "Analysis Method",
+            ["Time Series Analysis", "Change Detection", "Coherence Analysis", "Polarimetric Decomposition"]
+        )
+        
+        if st.button("🚀 Execute Analysis", type="primary"):
+            st.success("Analysis completed successfully!")
+    
+    with col2:
+        st.markdown("### 📊 Analysis Results")
+        
+        sar_data = generate_sample_sar_data()
+        
+        if analysis_type == "Time Series Analysis":
+            fig = create_professional_time_series(sar_data)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            # Create sample analysis visualization
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=sar_data['date'],
+                y=sar_data['VV'],
+                mode='lines',
+                name='SAR Analysis',
+                line=dict(color='#3b82f6', width=2)
+            ))
+            fig.update_layout(title=f"{analysis_type} Results", height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+elif st.session_state.current_page == 'Digital Twin':
+    st.markdown("## 🌍 3D Digital Twin Visualization")
+    
+    # Create 3D Earth visualization with SAR data overlay
+    def create_3d_earth_visualization():
+        # Generate spherical coordinates for Earth
+        phi = np.linspace(0, 2*np.pi, 50)
+        theta = np.linspace(0, np.pi, 50)
+        phi, theta = np.meshgrid(phi, theta)
+        
+        # Earth radius
+        R = 1
+        x = R * np.sin(theta) * np.cos(phi)
+        y = R * np.sin(theta) * np.sin(phi)
+        z = R * np.cos(theta)
+        
+        # Generate SAR data overlay (simulated)
+        sar_intensity = np.sin(3*theta) * np.cos(4*phi) + 0.5*np.random.random((50, 50))
+        
+        # Create 3D surface plot
+        fig = go.Figure()
+        
+        # Add Earth surface
+        fig.add_trace(go.Surface(
+            x=x, y=y, z=z,
+            surfacecolor=sar_intensity,
+            colorscale='Viridis',
+            opacity=0.9,
+            name='SAR Data',
+            showscale=True,
+            colorbar=dict(
+                title=dict(text="SAR Backscatter (dB)", side="right"),
+                tickmode="linear",
+                tick0=-20,
+                dtick=5
+            )
+        ))
+        
+        # Add disaster hotspots
+        hotspot_lats = [23.8, 37.7, -15.8, 28.4]
+        hotspot_lons = [90.4, -122.4, -47.9, 84.1]
+        hotspot_names = ['Bangladesh Flood', 'California Fire', 'Amazon Deforestation', 'Nepal Landslide']
+        
+        # Convert lat/lon to 3D coordinates
+        hotspot_phi = np.radians(hotspot_lons)
+        hotspot_theta = np.radians(90 - np.array(hotspot_lats))
+        hotspot_x = 1.1 * np.sin(hotspot_theta) * np.cos(hotspot_phi)
+        hotspot_y = 1.1 * np.sin(hotspot_theta) * np.sin(hotspot_phi)
+        hotspot_z = 1.1 * np.cos(hotspot_theta)
+        
+        fig.add_trace(go.Scatter3d(
+            x=hotspot_x, y=hotspot_y, z=hotspot_z,
+            mode='markers+text',
+            marker=dict(
+                size=15,
+                color=['red', 'orange', 'darkred', 'yellow'],
+                symbol='diamond'
+            ),
+            text=hotspot_names,
+            textposition="top center",
+            name='Disaster Events'
+        ))
+        
+        # Update layout for 3D visualization
+        fig.update_layout(
+            title={
+                'text': 'Interactive 3D Earth Digital Twin - SAR Data Overlay',
+                'x': 0.5,
+                'font': {'size': 20, 'color': '#1e293b'}
+            },
+            scene=dict(
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title=''),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title=''),
+                zaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title=''),
+                bgcolor='rgba(0,0,0,0.9)',
+                camera=dict(
+                    eye=dict(x=1.5, y=1.5, z=1.5)
+                )
+            ),
+            height=600,
+            margin=dict(l=0, r=0, t=50, b=0)
+        )
+        
+        return fig
+    
+    # Generate and display the 3D visualization
+    fig_3d = create_3d_earth_visualization()
+    st.plotly_chart(fig_3d, use_container_width=True)
+    
+    # Three.js Interactive 3D Earth Model
+    st.markdown("### 🌍 Interactive 3D Earth Model with Three.js")
+    
+    # Embed Three.js visualization
+    three_js_html = """
+    <div id="threejs-container" style="width: 100%; height: 600px; background: linear-gradient(135deg, #000428 0%, #004e92 100%); border-radius: 15px; position: relative;">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script>
+            // Scene setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
+            
+            const container = document.getElementById('threejs-container');
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setClearColor(0x000428, 0.8);
+            container.appendChild(renderer.domElement);
+            
+            // Create Earth
+            const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
+            
+            // Load Earth texture (using a simple color for now)
+            const earthMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4a90e2,
+                shininess: 100,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            scene.add(earth);
+            
+            // Create atmosphere
+            const atmosphereGeometry = new THREE.SphereGeometry(2.1, 64, 64);
+            const atmosphereMaterial = new THREE.MeshPhongMaterial({
+                color: 0x87ceeb,
+                transparent: true,
+                opacity: 0.3
+            });
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphere);
+            
+            // Add SAR data points (disaster locations)
+            const sarPoints = [
+                { lat: 23.8563, lon: 90.3564, name: 'Bangladesh Flood', color: 0xff0000 },
+                { lat: 37.7749, lon: -122.4194, name: 'California Fire', color: 0xff6600 },
+                { lat: 37.7510, lon: 14.9934, name: 'Italy Volcanic', color: 0xffff00 },
+                { lat: 28.3949, lon: 84.1240, name: 'Nepal Landslide', color: 0xff3300 }
+            ];
+            
+            sarPoints.forEach(point => {
+                // Convert lat/lon to 3D coordinates
+                const phi = (90 - point.lat) * (Math.PI / 180);
+                const theta = (point.lon + 180) * (Math.PI / 180);
+                
+                const x = 2.2 * Math.sin(phi) * Math.cos(theta);
+                const y = 2.2 * Math.cos(phi);
+                const z = 2.2 * Math.sin(phi) * Math.sin(theta);
+                
+                // Create marker
+                const markerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const markerMaterial = new THREE.MeshPhongMaterial({ 
+                    color: point.color,
+                    emissive: point.color,
+                    emissiveIntensity: 0.3
+                });
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(x, y, z);
+                scene.add(marker);
+                
+                // Add pulsing effect
+                marker.userData = { originalScale: 1, time: Math.random() * Math.PI * 2 };
+            });
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            
+            // Add stars
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+            
+            const starVertices = [];
+            for (let i = 0; i < 1000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+            
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+            
+            // Camera position
+            camera.position.z = 5;
+            
+            // Add controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 3;
+            controls.maxDistance = 10;
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotate Earth
+                earth.rotation.y += 0.002;
+                atmosphere.rotation.y += 0.001;
+                
+                // Animate SAR markers
+                scene.children.forEach(child => {
+                    if (child.userData && child.userData.originalScale) {
+                        child.userData.time += 0.05;
+                        const scale = 1 + 0.3 * Math.sin(child.userData.time);
+                        child.scale.setScalar(scale);
+                    }
+                });
+                
+                // Rotate stars slowly
+                stars.rotation.x += 0.0005;
+                stars.rotation.y += 0.0005;
+                
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const container = document.getElementById('threejs-container');
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+            
+            // Add click interaction
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            function onMouseClick(event) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children);
+                
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    if (object.userData && object.userData.originalScale) {
+                        // Flash the clicked marker
+                        object.material.emissiveIntensity = 1;
+                        setTimeout(() => {
+                            object.material.emissiveIntensity = 0.3;
+                        }, 200);
+                    }
+                }
+            }
+            
+            renderer.domElement.addEventListener('click', onMouseClick);
+        </script>
+        <div style="position: absolute; top: 20px; left: 20px; color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px;">
+            <h3 style="margin: 0 0 10px 0; color: #ffffff;">🌍 Interactive 3D Earth Model</h3>
+            <p style="margin: 5px 0; font-size: 14px;">🖱️ Click and drag to rotate</p>
+            <p style="margin: 5px 0; font-size: 14px;">🔍 Scroll to zoom in/out</p>
+            <p style="margin: 5px 0; font-size: 14px;">📍 Click markers for details</p>
+            <p style="margin: 5px 0; font-size: 14px;">🔴 Red: Critical Events</p>
+            <p style="margin: 5px 0; font-size: 14px;">🟡 Yellow: Volcanic Activity</p>
+        </div>
+    </div>
+    """
+    
+    st.components.v1.html(three_js_html, height=650)
+    
+    # Add temporal control
+    st.markdown("### ⏰ Temporal Analysis")
+    time_slider = st.slider(
+        "Time Period", 
+        min_value=0, 
+        max_value=365, 
+        value=180,
+        help="Slide to see SAR data changes over time"
+    )
+    
+    if time_slider:
+        st.info(f"Viewing SAR data for day {time_slider} of year")
+    
+    # Control panels
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("""
+        <div class="feature-card">
+            <h4>🎮 View Controls</h4>
+            <p>Interactive navigation</p>
+        </div>
+        """, unsafe_allow_html=True)
+        view_mode = st.selectbox("View Mode", ["Global", "Regional", "Local"])
+        time_animation = st.checkbox("Time Animation")
+        
+        if time_animation:
+            st.info("🔄 Time animation enabled")
+    
+    with col2:
+        st.markdown("""
+        <div class="feature-card">
+            <h4>📊 Data Layers</h4>
+            <p>Visualization options</p>
+        </div>
+        """, unsafe_allow_html=True)
+        show_sar = st.checkbox("SAR Intensity", value=True)
+        show_coherence = st.checkbox("Coherence Map")
+        show_change = st.checkbox("Change Detection")
+    
+    with col3:
+        st.markdown("""
+        <div class="feature-card">
+            <h4>🎨 Visualization</h4>
+            <p>Display settings</p>
+        </div>
+        """, unsafe_allow_html=True)
+        color_scheme = st.selectbox("Color Scheme", ["Viridis", "Plasma", "Blues", "RdYlBu"])
+        opacity = st.slider("Opacity", 0.1, 1.0, 0.8)
+    
+    with col4:
+        st.markdown("""
+        <div class="feature-card">
+            <h4>💾 Export</h4>
+            <p>Save and share</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("📸 Screenshot"):
+            st.success("Screenshot saved!")
+        if st.button("🎥 Record"):
+            st.success("Recording started!")
+    
+    # Additional 3D visualizations
+    st.markdown("### 📈 Multi-dimensional SAR Analysis")
+    
+    # Create additional 3D plots
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 🌊 3D Flood Visualization")
+        
+        # Generate 3D flood data
+        x_flood = np.linspace(-10, 10, 30)
+        y_flood = np.linspace(-10, 10, 30)
+        X_flood, Y_flood = np.meshgrid(x_flood, y_flood)
+        Z_flood = np.sin(np.sqrt(X_flood**2 + Y_flood**2)) * np.exp(-0.1*np.sqrt(X_flood**2 + Y_flood**2))
+        
+        # Add flood simulation
+        flood_intensity = -15 + 5 * Z_flood + np.random.normal(0, 1, Z_flood.shape)
+        
+        fig_flood = go.Figure(data=[go.Surface(
+            x=X_flood, y=Y_flood, z=flood_intensity,
+            colorscale='Blues',
+            name='Flood SAR Response'
+        )])
+        
+        fig_flood.update_layout(
+            title='3D Flood SAR Analysis',
+            scene=dict(
+                xaxis_title='Distance (km)',
+                yaxis_title='Distance (km)',
+                zaxis_title='SAR Backscatter (dB)'
+            ),
+            height=400
+        )
+        
+        st.plotly_chart(fig_flood, use_container_width=True)
+    
+    with col2:
+        st.markdown("#### 🔥 3D Fire Detection")
+        
+        # Generate 3D fire data
+        fire_x = np.linspace(0, 20, 25)
+        fire_y = np.linspace(0, 20, 25)
+        X_fire, Y_fire = np.meshgrid(fire_x, fire_y)
+        
+        # Simulate fire hotspots
+        fire_centers = [(10, 10), (5, 15), (15, 5)]
+        Z_fire = np.zeros_like(X_fire)
+        
+        for cx, cy in fire_centers:
+            distance = np.sqrt((X_fire - cx)**2 + (Y_fire - cy)**2)
+            Z_fire += 10 * np.exp(-distance/3)
+        
+        fig_fire = go.Figure(data=[go.Surface(
+            x=X_fire, y=Y_fire, z=Z_fire,
+            colorscale='Hot',
+            name='Fire Temperature'
+        )])
+        
+        fig_fire.update_layout(
+            title='3D Fire Detection Analysis',
+            scene=dict(
+                xaxis_title='Distance (km)',
+                yaxis_title='Distance (km)',
+                zaxis_title='Temperature Anomaly (°C)'
+            ),
+            height=400
+        )
+        
+        st.plotly_chart(fig_fire, use_container_width=True)
+    
+    # Volumetric data visualization
+    st.markdown("### 📦 Volumetric SAR Data Analysis")
+    
+    # Generate 3D volumetric data
+    def create_volumetric_plot():
+        # Create a 3D grid
+        x = np.linspace(-5, 5, 20)
+        y = np.linspace(-5, 5, 20)
+        z = np.linspace(-5, 5, 20)
+        X, Y, Z = np.meshgrid(x, y, z)
+        
+        # Generate volumetric SAR response
+        values = np.sin(X) * np.cos(Y) * np.sin(Z) + 0.5*np.random.random(X.shape)
+        
+        # Create scatter plot for volumetric visualization
+        fig_vol = go.Figure(data=go.Scatter3d(
+            x=X.flatten(),
+            y=Y.flatten(),
+            z=Z.flatten(),
+            mode='markers',
+            marker=dict(
+                size=3,
+                color=values.flatten(),
+                colorscale='Viridis',
+                opacity=0.6,
+                colorbar=dict(title="SAR Response")
+            )
+        ))
+        
+        fig_vol.update_layout(
+            title='Volumetric SAR Data Visualization',
+            scene=dict(
+                xaxis_title='X (km)',
+                yaxis_title='Y (km)',
+                zaxis_title='Z (km)',
+                bgcolor='rgba(0,0,0,0.1)'
+            ),
+            height=500
+        )
+        
+        return fig_vol
+    
+    if st.button("🔮 Generate Volumetric Visualization"):
+        with st.spinner("Generating 3D volumetric data..."):
+            vol_fig = create_volumetric_plot()
+            st.plotly_chart(vol_fig, use_container_width=True)
+
+elif st.session_state.current_page == 'Real-time Monitoring':
+    st.markdown("## ⚡ Real-time SAR Monitoring")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 📡 Live Data Stream")
+        
+        # Real-time simulation
+        if st.button("🔴 Start Live Monitoring"):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            chart_placeholder = st.empty()
+            
+            for i in range(100):
+                progress_bar.progress(i + 1)
+                status_text.text(f'Processing... {i+1}%')
+                
+                # Generate real-time data
+                current_time = datetime.now() - timedelta(seconds=i*10)
+                vv_value = -12 + np.random.normal(0, 2)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=[current_time],
+                    y=[vv_value],
+                    mode='markers',
+                    name='Live SAR Data',
+                    marker=dict(size=10, color='#3b82f6')
+                ))
+                
+                fig.update_layout(
+                    title="Real-time SAR Backscatter",
+                    height=300
+                )
+                
+                chart_placeholder.plotly_chart(fig, use_container_width=True)
+                time.sleep(0.1)
+        
+        # System metrics
+        st.markdown("### 📊 System Performance")
+        
+        metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
+        with metrics_col1:
+            st.metric("Processing Rate", "2.3 GB/min", "0.2 GB/min")
+        with metrics_col2:
+            st.metric("Latency", "4.2 sec", "-0.3 sec")
+        with metrics_col3:
+            st.metric("Uptime", "99.7%", "0.1%")
+    
+    with col2:
+        st.markdown("### 🎛️ Monitoring Controls")
+        
+        st.markdown("""
+        <div class="sar-card">
+            <h4>📊 Current Status</h4>
+            <p><strong>VV:</strong> -12.3 dB</p>
+            <p><strong>VH:</strong> -18.7 dB</p>
+            <p><strong>Coherence:</strong> 0.78</p>
+            <p><strong>Last Update:</strong> 2 sec ago</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("#### 🚨 Alert Thresholds")
+        flood_threshold = st.slider("Flood Alert (dB)", -20, -5, -15)
+        fire_threshold = st.slider("Fire Alert (dB)", -10, 0, -5)
+        
+        st.markdown("#### 📱 Notifications")
+        email_alerts = st.checkbox("Email Alerts")
+        sms_alerts = st.checkbox("SMS Alerts")
+
+elif st.session_state.current_page == 'AI Predictions':
+    st.markdown("## 🤖 AI-Powered Disaster Predictions")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### 🧠 AI Model Configuration")
+        
+        model_type = st.selectbox(
+            "Prediction Model",
+            ["Deep Learning CNN", "Random Forest", "LSTM Time Series", "Transformer Model"]
+        )
+        
+        prediction_type = st.selectbox(
+            "Prediction Type",
+            ["Flood Risk", "Fire Probability", "Landslide Risk", "Volcanic Eruption"]
+        )
+        
+        time_horizon = st.selectbox(
+            "Prediction Horizon",
+            ["1 day", "3 days", "1 week", "1 month"]
+        )
+        
+        confidence_threshold = st.slider("Confidence Threshold", 0.5, 0.95, 0.8)
+        
+        if st.button("🚀 Run Prediction"):
+            with st.spinner("Running AI model..."):
+                time.sleep(2)
+                st.success("Prediction completed!")
+    
+    with col2:
+        st.markdown("### 📈 Prediction Results")
+        
+        # Generate prediction visualization
+        dates = pd.date_range('2024-01-01', periods=30, freq='D')
+        risk_scores = np.random.beta(2, 5, 30)
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=risk_scores,
+            mode='lines+markers',
+            name='Risk Score',
+            line=dict(color='#dc2626', width=3),
+            fill='tonexty',
+            fillcolor='rgba(220, 38, 38, 0.1)'
+        ))
+        
+        fig.add_hline(y=0.7, line_dash="dash", line_color="#f59e0b", 
+                     annotation_text="Alert Threshold")
+        
+        fig.update_layout(
+            title="AI Risk Prediction - Next 30 Days",
+            xaxis_title="Date",
+            yaxis_title="Risk Score",
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Model performance metrics
+    st.markdown("### 📊 Model Performance")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Accuracy", "94.2%", "↑ 1.3%")
+    with col2:
+        st.metric("Precision", "91.7%", "↑ 0.8%")
+    with col3:
+        st.metric("Recall", "88.9%", "↑ 2.1%")
+    with col4:
+        st.metric("F1-Score", "90.3%", "↑ 1.5%")
+
+elif st.session_state.current_page == 'Data Explorer':
+    st.markdown("## 📊 Interactive Data Explorer")
+    
+    # Data filtering controls
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        date_range = st.date_input(
+            "Analysis Period",
+            value=(datetime(2024, 1, 1), datetime(2024, 12, 31))
+        )
+    
+    with col2:
+        data_types = st.multiselect(
+            "Data Products",
+            ["SAR Intensity", "Coherence", "Phase", "Physical Parameters"],
+            default=["SAR Intensity"]
+        )
+    
+    with col3:
+        region = st.selectbox(
+            "Geographic Region",
+            ["Global", "North America", "Europe", "Asia", "South America", "Africa"]
+        )
+    
+    # Generate sample data
+    sample_data = generate_sample_sar_data()
+    
+    # Data exploration tabs
+    tab1, tab2, tab3 = st.tabs(["📈 Time Series", "🌍 Spatial", "📊 Statistics"])
+    
+    with tab1:
+        st.markdown("### 📈 Temporal Analysis")
+        
+        fig = create_professional_time_series(sample_data)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("### 📋 Data Summary")
+        st.dataframe(sample_data.head(10), use_container_width=True)
+    
+    with tab2:
+        st.markdown("### 🌍 Spatial Distribution")
+        
+        # Generate synthetic spatial data
+        lat = np.random.uniform(20, 60, 100)
+        lon = np.random.uniform(-120, 40, 100)
+        intensity = np.random.normal(-12, 3, 100)
+        
+        fig = go.Figure(data=go.Scattergeo(
+            lat=lat,
+            lon=lon,
+            mode='markers',
+            marker=dict(
+                size=8,
+                color=intensity,
+                colorscale='Blues',
+                colorbar=dict(title="SAR Intensity (dB)")
+            )
+        ))
+        
+        fig.update_layout(
+            title='Spatial Distribution of SAR Data',
+            geo=dict(showland=True, landcolor='#f8fafc'),
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with tab3:
+        st.markdown("### 📊 Statistical Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 📋 Descriptive Statistics")
+            stats_df = sample_data[['VV', 'VH', 'coherence']].describe()
+            st.dataframe(stats_df, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### 📈 Distribution")
+            
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(
+                x=sample_data['VV'],
+                nbinsx=30,
+                name='VV Distribution',
+                marker_color='#3b82f6'
+            ))
+            
+            fig.update_layout(
+                title="VV Backscatter Distribution",
+                height=300
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+elif st.session_state.current_page == 'Research Lab':
+    st.markdown("## 🔬 Scientific Research Laboratory")
+    
+    tab1, tab2, tab3 = st.tabs(["💡 Hypothesis Lab", "🧪 Experiments", "📚 Publications"])
+    
+    with tab1:
+        st.markdown("### 💡 Hypothesis Development Framework")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### ✍️ Create New Hypothesis")
+            
+            hypothesis_title = st.text_input("Hypothesis Title")
+            hypothesis_description = st.text_area(
+                "Detailed Description", 
+                placeholder="Describe your hypothesis about Earth processes and SAR response..."
+            )
+            
+            variables = st.multiselect(
+                "Key Variables",
+                ["Soil Moisture", "Vegetation Density", "Surface Roughness", "Temperature", 
+                 "Precipitation", "Snow Cover", "Dielectric Constant"]
+            )
+            
+            expected_outcome = st.text_area(
+                "Expected SAR Response",
+                placeholder="Describe expected changes in backscatter, coherence, etc..."
+            )
+            
+            if st.button("💾 Save Hypothesis"):
+                st.success("Hypothesis saved successfully!")
+        
+        with col2:
+            st.markdown("#### 📊 Hypothesis Testing Results")
+            
+            hypotheses = [
+                {"name": "Soil Moisture-VV Correlation", "status": "✅ Supported", "p_value": 0.023},
+                {"name": "Vegetation-VH Relationship", "status": "❌ Rejected", "p_value": 0.156},
+                {"name": "Surface Roughness Impact", "status": "✅ Supported", "p_value": 0.001}
+            ]
+            
+            for hyp in hypotheses:
+                st.markdown(f"""
+                <div class="sar-card">
+                    <h5>{hyp['name']}</h5>
+                    <p><strong>Status:</strong> {hyp['status']}</p>
+                    <p><strong>P-value:</strong> {hyp['p_value']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    with tab2:
+        st.markdown("### 🧪 Active Experiments")
+        
+        experiments = [
+            {
+                "name": "Multi-temporal Flood Analysis",
+                "status": "🔄 Running",
+                "progress": 75,
+                "start_date": "2024-09-15",
+                "completion": "2024-10-20"
+            },
+            {
+                "name": "Polarimetric Forest Monitoring",
+                "status": "✅ Completed",
+                "progress": 100,
+                "start_date": "2024-08-01",
+                "completion": "2024-09-30"
+            },
+            {
+                "name": "Ice Sheet Dynamics Study",
+                "status": "📋 Planning",
+                "progress": 10,
+                "start_date": "2024-10-25",
+                "completion": "2024-12-15"
+            }
+        ]
+        
+        for exp in experiments:
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                st.markdown(f"**{exp['name']}**")
+                st.progress(exp['progress'] / 100)
+            
+            with col2:
+                st.markdown(f"Status: {exp['status']}")
+                st.markdown(f"Progress: {exp['progress']}%")
+            
+            with col3:
+                st.markdown(f"Start: {exp['start_date']}")
+                st.markdown(f"End: {exp['completion']}")
+        
+        # Create new experiment
+        st.markdown("#### 🆕 Create New Experiment")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            exp_name = st.text_input("Experiment Name")
+            exp_type = st.selectbox("Type", ["Disaster Monitoring", "Climate Research", "Methodology"])
+        
+        with col2:
+            duration = st.selectbox("Duration", ["1 month", "3 months", "6 months", "1 year"])
+            resources = st.multiselect("Resources", ["Sentinel-1", "ALOS-2", "Ground Truth", "Computing"])
+        
+        with col3:
+            priority = st.selectbox("Priority", ["Low", "Medium", "High", "Critical"])
+            if st.button("🚀 Launch Experiment"):
+                st.success("Experiment queued for launch!")
+    
+    with tab3:
+        st.markdown("### 📚 Research Publications & Results")
+        
+        publications = [
+            {
+                "title": "Multi-frequency SAR Analysis for Flood Detection in Urban Areas",
+                "authors": "Smith, J., Johnson, A., Lee, K.",
+                "journal": "Remote Sensing of Environment",
+                "year": "2024",
+                "citations": 23,
+                "impact_factor": 11.1
+            },
+            {
+                "title": "Polarimetric Decomposition for Forest Biomass Estimation",
+                "authors": "Garcia, M., Brown, R., Wilson, S.",
+                "journal": "IEEE Transactions on Geoscience and Remote Sensing",
+                "year": "2024",
+                "citations": 45,
+                "impact_factor": 8.2
+            }
+        ]
+        
+        for pub in publications:
+            st.markdown(f"""
+            <div class="sar-card">
+                <h5>{pub['title']}</h5>
+                <p><strong>Authors:</strong> {pub['authors']}</p>
+                <p><strong>Journal:</strong> {pub['journal']} ({pub['year']})</p>
+                <p><strong>Citations:</strong> {pub['citations']} | <strong>Impact Factor:</strong> {pub['impact_factor']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+elif st.session_state.current_page == 'Alert System':
+    st.markdown("## 🚨 Advanced Alert & Response System")
+    
+    # Critical alerts
+    st.markdown("### 🔥 Critical Alerts")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class="alert-panel">
+            <h4>🌊 SEVERE FLOOD WARNING</h4>
+            <p><strong>Location:</strong> Brahmaputra River Basin, Bangladesh</p>
+            <p><strong>Severity:</strong> Critical (Level 5)</p>
+            <p><strong>Affected Area:</strong> 1,247 km²</p>
+            <p><strong>Population at Risk:</strong> 2.3 million</p>
+            <p><strong>Response Team:</strong> Deployed</p>
+            <p><strong>Last Update:</strong> 3 minutes ago</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("#### 🎯 Quick Actions")
+        if st.button("📞 Contact Emergency Services", type="primary"):
+            st.success("Emergency services notified!")
+        if st.button("📧 Send Alert Broadcast"):
+            st.success("Alert broadcast sent!")
+        if st.button("🗺️ Update Evacuation Routes"):
+            st.success("Routes updated!")
+    
+    # Alert configuration
+    st.markdown("### ⚙️ Alert Configuration")
+    
+    tab1, tab2, tab3 = st.tabs(["🎚️ Thresholds", "📱 Notifications", "🌍 Regions"])
+    
+    with tab1:
+        st.markdown("#### 🎚️ Detection Thresholds")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Flood Detection**")
+            flood_vv_threshold = st.slider("VV Backscatter (dB)", -25, -5, -15)
+            flood_coherence_threshold = st.slider("Coherence Loss", 0.1, 0.8, 0.3)
+            flood_area_threshold = st.slider("Min Affected Area (km²)", 1, 100, 10)
+        
+        with col2:
+            st.markdown("**Fire Detection**")
+            fire_temp_threshold = st.slider("Temperature Anomaly (°C)", 5, 50, 20)
+            fire_backscatter_threshold = st.slider("Backscatter Change (dB)", 2, 15, 8)
+            fire_confidence_threshold = st.slider("Confidence Level", 0.5, 0.95, 0.8)
+    
+    with tab2:
+        st.markdown("#### 📱 Notification Settings")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("**Email Notifications**")
+            email_enabled = st.checkbox("Enable Email Alerts", value=True)
+            email_list = st.text_area("Email Recipients", "admin@disaster-lens.org")
+        
+        with col2:
+            st.markdown("**SMS Notifications**")
+            sms_enabled = st.checkbox("Enable SMS Alerts")
+            sms_list = st.text_area("Phone Numbers", "+1-555-0123")
+        
+        with col3:
+            st.markdown("**API Webhooks**")
+            webhook_enabled = st.checkbox("Enable Webhooks")
+            webhook_url = st.text_input("Webhook URL", "https://api.emergency.gov/alerts")
+    
+    with tab3:
+        st.markdown("#### 🌍 Monitoring Regions")
+        
+        regions = [
+            {"name": "Bangladesh Delta", "status": "🔴 Critical", "population": "12.5M"},
+            {"name": "California Coast", "status": "🟡 Moderate", "population": "8.2M"},
+            {"name": "European Alps", "status": "🟢 Normal", "population": "3.1M"},
+            {"name": "Amazon Basin", "status": "🟡 Moderate", "population": "25.7M"}
+        ]
+        
+        for region in regions:
+            col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+            
+            with col1:
+                st.markdown(f"**{region['name']}**")
+            with col2:
+                st.markdown(region['status'])
+            with col3:
+                st.markdown(f"Pop: {region['population']}")
+            with col4:
+                if st.button("⚙️", key=f"config_{region['name']}"):
+                    st.info(f"Configuring {region['name']}")
+
+elif st.session_state.current_page == 'Documentation':
+    st.markdown("## 📚 System Documentation")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["📖 User Guide", "🔧 API Docs", "🎓 Tutorials", "❓ FAQ"])
+    
+    with tab1:
+        st.markdown("### 📖 User Guide")
+        
+        st.markdown("""
+        #### Welcome to SAR Disaster Lens
+        
+        This comprehensive platform provides real-time disaster monitoring and analysis using 
+        Synthetic Aperture Radar (SAR) data.
+        
+        ##### 🚀 Getting Started
+        1. **Navigation**: Use the sidebar to navigate between modules
+        2. **Dashboard**: Start with the Home dashboard for overview
+        3. **Analysis**: Use SAR Analysis for detailed data exploration
+        4. **Monitoring**: Enable real-time monitoring for critical areas
+        
+        ##### 📡 SAR Data Understanding
+        - **VV Polarization**: Vertical transmit, vertical receive
+        - **VH Polarization**: Vertical transmit, horizontal receive
+        - **Coherence**: Measure of interferometric correlation
+        - **Backscatter**: Strength of radar signal return
+        
+        ##### 🔍 Analysis Workflows
+        1. **Flood Monitoring**: Look for decreased VV backscatter over water
+        2. **Fire Detection**: Monitor changes in cross-polarization ratios
+        3. **Forest Monitoring**: Track biomass changes through backscatter
+        4. **Ice Dynamics**: Use coherence to detect ice movement
+        """)
+    
+    with tab2:
+        st.markdown("### 🔧 API Documentation")
+        
+        st.markdown("""
+        #### RESTful API Endpoints
+        
+        Base URL: `https://api.sar-disaster-lens.org/v1/`
+        
+        ##### Authentication
+        ```bash
+        curl -H "Authorization: Bearer YOUR_API_KEY" \\
+             https://api.sar-disaster-lens.org/v1/data
+        ```
+        
+        ##### Available Endpoints
+        
+        **GET /data/sar**
+        - Retrieve SAR data for specified region and time range
+        - Parameters: `bbox`, `start_date`, `end_date`, `polarization`
+        
+        **GET /alerts/active**
+        - Get current active disaster alerts
+        - Parameters: `severity`, `type`, `region`
+        
+        **POST /analysis/run**
+        - Submit analysis job
+        - Body: `{"type": "change_detection", "parameters": {...}}`
+        
+        **GET /predictions/{model_id}**
+        - Retrieve AI model predictions
+        - Parameters: `forecast_days`, `confidence_level`
+        
+        ##### Response Format
+        ```json
+        {
+            "status": "success",
+            "data": {
+                "sar_data": [...],
+                "metadata": {...}
+            },
+            "timestamp": "2024-10-04T16:30:00Z"
+        }
+        ```
+        """)
+    
+    with tab3:
+        st.markdown("### 🎓 Interactive Tutorials")
+        
+        tutorial_options = [
+            "🌊 Flood Detection with SAR",
+            "🔥 Wildfire Monitoring Basics", 
+            "🌲 Forest Change Analysis",
+            "❄️ Ice Sheet Dynamics",
+            "🤖 AI Model Training",
+            "📊 Data Visualization Techniques"
+        ]
+        
+        selected_tutorial = st.selectbox("Choose a Tutorial", tutorial_options)
+        
+        if selected_tutorial == "🌊 Flood Detection with SAR":
+            st.markdown("""
+            #### Tutorial: Flood Detection with SAR Data
+            
+            **Learning Objectives:**
+            - Understand SAR response to water surfaces
+            - Learn flood detection techniques
+            - Practice with real datasets
+            
+            **Step 1: Understanding Water Surface SAR Response**
+            Water surfaces act as specular reflectors, causing most radar energy to be 
+            reflected away from the sensor. This results in very low backscatter values.
+            
+            **Step 2: Threshold Selection**
+            Typical flood detection thresholds:
+            - VV polarization: < -15 dB
+            - Coherence: < 0.3 (for persistent water)
+            
+            **Step 3: Change Detection**
+            Compare pre-flood and post-flood SAR images to identify new water areas.
+            """)
+            
+            if st.button("🚀 Start Interactive Tutorial"):
+                with st.spinner("Loading tutorial environment..."):
+                    time.sleep(2)
+                    st.success("Tutorial environment ready!")
+        else:
+            st.info(f"Tutorial '{selected_tutorial}' will be available soon.")
+    
+    with tab4:
+        st.markdown("### ❓ Frequently Asked Questions")
+        
+        faqs = [
+            {
+                "question": "What is SAR and why is it useful for disaster monitoring?",
+                "answer": "Synthetic Aperture Radar (SAR) can penetrate clouds and work day or night, making it ideal for disaster monitoring in all weather conditions."
+            },
+            {
+                "question": "How often is the SAR data updated?",
+                "answer": "Sentinel-1 provides global coverage every 6 days, with some regions having 3-day repeat cycles."
+            },
+            {
+                "question": "What is the spatial resolution of the SAR data?",
+                "answer": "Most SAR data used has 10-20 meter spatial resolution, suitable for regional disaster monitoring."
+            },
+            {
+                "question": "How accurate are the AI predictions?",
+                "answer": "Our AI models achieve 90-95% accuracy for most disaster types, with continuous performance monitoring."
+            }
+        ]
+        
+        for faq in faqs:
+            with st.expander(faq["question"]):
+                st.markdown(faq["answer"])
