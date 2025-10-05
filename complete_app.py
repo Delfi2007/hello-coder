@@ -345,8 +345,8 @@ if st.session_state.current_page == 'Home':
         st.markdown("""
         <div class="metric-card">
             <h3>🛰️ Active Satellites</h3>
-            <h1>12</h1>
-            <p>Sentinel-1A/B, ALOS-2, TerraSAR-X</p>
+            <h1>2</h1>
+            <p>Sentinel-1A, Sentinel-1B</p>
         </div>
         """, unsafe_allow_html=True)
     
