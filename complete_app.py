@@ -780,8 +780,8 @@ elif st.session_state.current_page == 'Change Detection':
             renderer2.domElement.style.right = '0px';
             container.appendChild(renderer2.domElement);
             
-            // Generate 3D terrain data based on disaster type
-            function generateTerrainData(disasterType, isAfter = false) {{
+            // Generate 3D terrain data based on location and disaster type
+            function generateTerrainData(disasterType, location, isAfter = false) {{
                 const size = 50;
                 const geometry = new THREE.PlaneGeometry(10, 10, size-1, size-1);
                 const vertices = geometry.attributes.position;
@@ -791,8 +791,38 @@ elif st.session_state.current_page == 'Change Detection':
                     const y = vertices.getY(i);
                     let z = 0;
                     
-                    // Base terrain
-                    z = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 0.5;
+                    // Generate location-specific base terrain
+                    if (location === 'Bangladesh Delta') {{
+                        // Flat delta terrain with river channels
+                        z = 0.1 * Math.sin(x * 2) * Math.cos(y * 1.5) - 0.05;
+                        // Add river channels
+                        if (Math.abs(Math.sin(x * 3)) < 0.3) z -= 0.2;
+                    }} else if (location === 'California Coast') {{
+                        // Rolling hills and valleys
+                        z = Math.sin(x * 0.8) * Math.cos(y * 0.6) * 1.2 + 0.5;
+                        // Add coastal features
+                        if (x > 3) z *= 0.3; // Flatter near coast
+                    }} else if (location === 'Amazon Rainforest') {{
+                        // Dense forest canopy with gentle undulations
+                        z = Math.sin(x * 0.4) * Math.cos(y * 0.4) * 0.8;
+                        // Add forest density variations
+                        z += (Math.random() - 0.5) * 0.3;
+                    }} else if (location === 'Nepal Mountains') {{
+                        // Steep mountainous terrain
+                        z = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 3;
+                        // Add steep slopes and ridges
+                        z += Math.sin(x * 1.5) * 0.8;
+                        if (z < 0) z = Math.abs(z); // No negative elevations in mountains
+                    }} else if (location === 'Italy Volcanic Region') {{
+                        // Volcanic cone and lava fields
+                        const distFromCenter = Math.sqrt(x*x + y*y);
+                        z = Math.max(0, 2 - distFromCenter * 0.4);
+                        // Add volcanic texture
+                        z += Math.sin(distFromCenter * 2) * 0.3;
+                    }} else {{
+                        // Default terrain
+                        z = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 0.5;
+                    }}
                     
                     if (disasterType === 'Flooding' && isAfter) {{
                         // Simulate water level - flat areas at low elevation
@@ -827,39 +857,73 @@ elif st.session_state.current_page == 'Change Detection':
             }}
             
             // Create terrains
-            const beforeGeometry = generateTerrainData('{disaster_type}', false);
-            const afterGeometry = generateTerrainData('{disaster_type}', true);
+            const beforeGeometry = generateTerrainData('{disaster_type}', '{location}', false);
+            const afterGeometry = generateTerrainData('{disaster_type}', '{location}', true);
             
-            // Materials based on disaster type
+            // Materials based on location and disaster type
             let beforeMaterial, afterMaterial;
+            
+            // Location-specific base materials
+            let locationBaseColor = 0x8B4513; // Default brown
+            if ('{location}' === 'Bangladesh Delta') {{
+                locationBaseColor = 0x9ACD32; // Yellow-green for delta
+            }} else if ('{location}' === 'California Coast') {{
+                locationBaseColor = 0xDEB887; // Burlywood for coastal hills
+            }} else if ('{location}' === 'Amazon Rainforest') {{
+                locationBaseColor = 0x228B22; // Forest green
+            }} else if ('{location}' === 'Nepal Mountains') {{
+                locationBaseColor = 0x696969; // Dim gray for mountains
+            }} else if ('{location}' === 'Italy Volcanic Region') {{
+                locationBaseColor = 0x654321; // Dark brown for volcanic soil
+            }}
             
             if ('{disaster_type}' === 'Flooding') {{
                 beforeMaterial = new THREE.MeshPhongMaterial({{ 
-                    color: 0x8B4513, 
+                    color: locationBaseColor,
                     wireframe: false,
                     transparent: true,
                     opacity: 0.9
                 }});
                 afterMaterial = new THREE.MeshPhongMaterial({{ 
-                    color: 0x4169E1,
+                    color: '{location}' === 'Bangladesh Delta' ? 0x4682B4 : 0x4169E1,
                     transparent: true,
                     opacity: 0.8
                 }});
             }} else if ('{disaster_type}' === 'Wildfire') {{
-                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x228B22 }});
-                afterMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B0000 }});
+                beforeMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Amazon Rainforest' ? 0x006400 : 
+                           '{location}' === 'California Coast' ? 0x9ACD32 : locationBaseColor
+                }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'California Coast' ? 0x8B0000 : 0xA0522D,
+                    emissive: 0x2F0000,
+                    emissiveIntensity: 0.2
+                }});
             }} else if ('{disaster_type}' === 'Landslide') {{
-                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B4513 }});
-                afterMaterial = new THREE.MeshPhongMaterial({{ color: 0xA0522D }});
+                beforeMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Nepal Mountains' ? 0x708090 : locationBaseColor
+                }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Nepal Mountains' ? 0xA0522D : 0x8B4513
+                }});
             }} else if ('{disaster_type}' === 'Volcanic Eruption') {{
-                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x654321 }});
+                beforeMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Italy Volcanic Region' ? 0x654321 : locationBaseColor
+                }});
                 afterMaterial = new THREE.MeshPhongMaterial({{ 
                     color: 0xFF4500,
                     emissive: 0x440000,
-                    emissiveIntensity: 0.3
+                    emissiveIntensity: '{location}' === 'Italy Volcanic Region' ? 0.4 : 0.3
+                }});
+            }} else if ('{disaster_type}' === 'Deforestation') {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Amazon Rainforest' ? 0x006400 : 0x228B22
+                }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: '{location}' === 'Amazon Rainforest' ? 0x8B4513 : 0xA0522D
                 }});
             }} else {{
-                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x228B22 }});
+                beforeMaterial = new THREE.MeshPhongMaterial({{ color: locationBaseColor }});
                 afterMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B4513 }});
             }}
             
@@ -870,11 +934,20 @@ elif st.session_state.current_page == 'Change Detection':
             scene1.add(beforeTerrain);
             scene2.add(afterTerrain);
             
-            // Add special effects for flooding
+            // Add location-specific environmental effects
             if ('{disaster_type}' === 'Flooding') {{
                 const waterGeometry = new THREE.PlaneGeometry(10, 10);
+                let waterColor = 0x006994;
+                
+                // Location-specific water appearance
+                if ('{location}' === 'Bangladesh Delta') {{
+                    waterColor = 0x8B7355; // Muddy river water
+                }} else if ('{location}' === 'California Coast') {{
+                    waterColor = 0x4682B4; // Clear coastal water
+                }}
+                
                 const waterMaterial = new THREE.MeshPhongMaterial({{
-                    color: 0x006994,
+                    color: waterColor,
                     transparent: true,
                     opacity: 0.6,
                     side: THREE.DoubleSide
@@ -883,6 +956,38 @@ elif st.session_state.current_page == 'Change Detection':
                 water.position.z = -0.25;
                 water.rotation.x = 0;
                 scene2.add(water);
+            }}
+            
+            // Add location-specific vegetation for Amazon
+            if ('{location}' === 'Amazon Rainforest' && '{disaster_type}' !== 'Deforestation') {{
+                for (let i = 0; i < 30; i++) {{
+                    const treeGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
+                    const treeMaterial = new THREE.MeshPhongMaterial({{ color: 0x228B22 }});
+                    const tree = new THREE.Mesh(treeGeometry, treeMaterial);
+                    tree.position.x = (Math.random() - 0.5) * 8;
+                    tree.position.y = (Math.random() - 0.5) * 8;
+                    tree.position.z = 0.15;
+                    scene1.add(tree);
+                    
+                    if ('{disaster_type}' !== 'Wildfire') {{
+                        scene2.add(tree.clone());
+                    }}
+                }}
+            }}
+            
+            // Add snow caps for Nepal Mountains
+            if ('{location}' === 'Nepal Mountains') {{
+                const snowGeometry = new THREE.PlaneGeometry(10, 10);
+                const snowMaterial = new THREE.MeshPhongMaterial({{
+                    color: 0xFFFAFA,
+                    transparent: true,
+                    opacity: 0.4
+                }});
+                const snow = new THREE.Mesh(snowGeometry, snowMaterial);
+                snow.position.z = 1.5;
+                snow.rotation.x = 0;
+                scene1.add(snow);
+                scene2.add(snow.clone());
             }}
             
             // Add particle effects for volcanic eruption
@@ -1127,16 +1232,56 @@ elif st.session_state.current_page == 'Change Detection':
                 const x = changeVertices.getX(i);
                 const y = changeVertices.getY(i);
                 
-                // Generate change magnitude based on disaster type
+                // Generate change magnitude based on location and disaster type
                 let changeValue = 0;
+                
                 if ('{disaster_type}' === 'Flooding') {{
-                    changeValue = -Math.abs(Math.sin(x * 0.8) * Math.cos(y * 0.8) * 2);
+                    if ('{location}' === 'Bangladesh Delta') {{
+                        // River-channel flooding pattern
+                        changeValue = -Math.abs(Math.sin(x * 3) * 2);
+                        if (Math.abs(Math.sin(x * 3)) < 0.3) changeValue -= 1;
+                    }} else {{
+                        changeValue = -Math.abs(Math.sin(x * 0.8) * Math.cos(y * 0.8) * 2);
+                    }}
                 }} else if ('{disaster_type}' === 'Wildfire') {{
-                    const distance = Math.sqrt(x*x + y*y);
-                    changeValue = Math.max(0, 3 - distance) * (1 + Math.random() * 0.5);
+                    if ('{location}' === 'California Coast') {{
+                        // Wind-driven fire pattern
+                        changeValue = Math.max(0, Math.sin(x * 0.5 + y * 1.2) * 3);
+                    }} else if ('{location}' === 'Amazon Rainforest') {{
+                        // Scattered deforestation fires
+                        const distance = Math.sqrt(x*x + y*y);
+                        changeValue = Math.max(0, 2 - distance * 0.8) * (1 + Math.random() * 0.7);
+                    }} else {{
+                        const distance = Math.sqrt(x*x + y*y);
+                        changeValue = Math.max(0, 3 - distance) * (1 + Math.random() * 0.5);
+                    }}
                 }} else if ('{disaster_type}' === 'Volcanic Eruption') {{
                     const distance = Math.sqrt(x*x + y*y);
-                    changeValue = Math.max(0, 2 - distance * 0.5) * 2;
+                    if ('{location}' === 'Italy Volcanic Region') {{
+                        // Realistic volcanic cone pattern
+                        changeValue = Math.max(0, 3 - distance * 0.3) * 1.5;
+                        // Add lava flow direction
+                        if (y < 0) changeValue *= 1.3;
+                    }} else {{
+                        changeValue = Math.max(0, 2 - distance * 0.5) * 2;
+                    }}
+                }} else if ('{disaster_type}' === 'Landslide') {{
+                    if ('{location}' === 'Nepal Mountains') {{
+                        // Mountain slope failure pattern
+                        changeValue = Math.sin(x * 0.8) * Math.cos(y * 0.3) * 2;
+                        if (x > 0 && y > -1 && y < 1) changeValue += 2;
+                    }} else {{
+                        changeValue = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 1.5;
+                    }}
+                }} else if ('{disaster_type}' === 'Deforestation') {{
+                    if ('{location}' === 'Amazon Rainforest') {{
+                        // Road-based deforestation pattern
+                        changeValue = -Math.abs(Math.sin(x * 2) * 1.5);
+                        // Add branching pattern
+                        if (Math.abs(y) < 0.5) changeValue -= 1;
+                    }} else {{
+                        changeValue = -Math.abs(Math.sin(x * 0.6) * Math.cos(y * 0.6) * 1.2);
+                    }}
                 }} else {{
                     changeValue = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 1.5;
                 }}
