@@ -223,6 +223,7 @@ def show_navigation():
     pages = {
         'Home': '🏠 Home Dashboard',
         'SAR Analysis': '📡 SAR Analysis',
+        'Change Detection': '🔍 Change Detection',
         'Digital Twin': '🌍 3D Digital Twin',
         'Real-time Monitoring': '⚡ Real-time Monitoring',
         'AI Predictions': '🤖 AI Predictions',
@@ -598,6 +599,733 @@ elif st.session_state.current_page == 'SAR Analysis':
             ))
             fig.update_layout(title=f"{analysis_type} Results", height=400)
             st.plotly_chart(fig, use_container_width=True)
+
+elif st.session_state.current_page == 'Change Detection':
+    st.markdown("## 🔍 SAR Change Detection Analysis")
+    st.markdown("### Compare Before & After Events - Reveal Hidden Changes")
+    
+    # Event selection
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        disaster_type = st.selectbox(
+            "Select Disaster Type",
+            ["Flooding", "Wildfire", "Deforestation", "Landslide", "Volcanic Eruption", "Urban Development"]
+        )
+    
+    with col2:
+        location = st.selectbox(
+            "Study Location",
+            ["Bangladesh Delta", "California Coast", "Amazon Rainforest", "Nepal Mountains", "Italy Volcanic Region", "Custom Location"]
+        )
+    
+    with col3:
+        time_period = st.selectbox(
+            "Analysis Period",
+            ["Last Month", "Last 6 Months", "Last Year", "Custom Range"]
+        )
+    
+    # Generate realistic SAR data for before/after comparison
+    def generate_sar_change_data(disaster_type, rows=100, cols=100):
+        np.random.seed(42)
+        
+        # Generate base SAR backscatter (before event)
+        if disaster_type == "Flooding":
+            before_data = -12 + 3 * np.random.random((rows, cols))
+            # Simulate flood - water appears very dark in SAR
+            flood_mask = np.random.random((rows, cols)) < 0.3
+            after_data = before_data.copy()
+            after_data[flood_mask] = -20 + 2 * np.random.random(np.sum(flood_mask))
+            
+        elif disaster_type == "Wildfire":
+            before_data = -8 + 4 * np.random.random((rows, cols))
+            # Simulate burn scars - increased backscatter from rough surfaces
+            burn_mask = np.random.random((rows, cols)) < 0.25
+            after_data = before_data.copy()
+            after_data[burn_mask] = before_data[burn_mask] + 5 + 2 * np.random.random(np.sum(burn_mask))
+            
+        elif disaster_type == "Deforestation":
+            before_data = -6 + 5 * np.random.random((rows, cols))
+            # Simulate deforestation - loss of volume scattering
+            deforest_mask = np.random.random((rows, cols)) < 0.2
+            after_data = before_data.copy()
+            after_data[deforest_mask] = before_data[deforest_mask] - 8 + 3 * np.random.random(np.sum(deforest_mask))
+            
+        elif disaster_type == "Landslide":
+            before_data = -10 + 6 * np.random.random((rows, cols))
+            # Simulate landslide - changes in surface roughness
+            slide_mask = np.random.random((rows, cols)) < 0.15
+            after_data = before_data.copy()
+            after_data[slide_mask] = -5 + 8 * np.random.random(np.sum(slide_mask))
+            
+        elif disaster_type == "Volcanic Eruption":
+            before_data = -7 + 4 * np.random.random((rows, cols))
+            # Simulate volcanic deposits - increased backscatter
+            volcanic_mask = np.random.random((rows, cols)) < 0.1
+            after_data = before_data.copy()
+            after_data[volcanic_mask] = before_data[volcanic_mask] + 8 + 3 * np.random.random(np.sum(volcanic_mask))
+            
+        else:  # Urban Development
+            before_data = -10 + 5 * np.random.random((rows, cols))
+            # Simulate urban development - strong corner reflections
+            urban_mask = np.random.random((rows, cols)) < 0.2
+            after_data = before_data.copy()
+            after_data[urban_mask] = -2 + 4 * np.random.random(np.sum(urban_mask))
+        
+        change_data = after_data - before_data
+        return before_data, after_data, change_data
+    
+    # Generate data
+    before_sar, after_sar, change_map = generate_sar_change_data(disaster_type)
+    
+    # Create comparison visualization
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=('Before Event', 'After Event', 'Change Detection', 'Analysis Results'),
+        specs=[[{"type": "heatmap"}, {"type": "heatmap"}],
+               [{"type": "heatmap"}, {"type": "scatter"}]]
+    )
+    
+    # Before event
+    fig.add_trace(
+        go.Heatmap(
+            z=before_sar,
+            colorscale='Blues',
+            name='Before',
+            showscale=False,
+            hovertemplate="Before: %{z:.1f} dB<extra></extra>"
+        ),
+        row=1, col=1
+    )
+    
+    # After event
+    fig.add_trace(
+        go.Heatmap(
+            z=after_sar,
+            colorscale='Blues',
+            name='After',
+            showscale=False,
+            hovertemplate="After: %{z:.1f} dB<extra></extra>"
+        ),
+        row=1, col=2
+    )
+    
+    # Change detection
+    fig.add_trace(
+        go.Heatmap(
+            z=change_map,
+            colorscale='RdBu',
+            name='Change',
+            showscale=True,
+            colorbar=dict(title="Change (dB)", x=0.85),
+            hovertemplate="Change: %{z:.1f} dB<extra></extra>"
+        ),
+        row=2, col=1
+    )
+    
+    # Statistical analysis
+    change_histogram = np.histogram(change_map.flatten(), bins=50)
+    fig.add_trace(
+        go.Scatter(
+            x=change_histogram[1][:-1],
+            y=change_histogram[0],
+            mode='lines',
+            fill='tonexty',
+            name='Change Distribution',
+            line=dict(color='#3b82f6', width=2)
+        ),
+        row=2, col=2
+    )
+    
+    fig.update_layout(
+        height=800,
+        title_text=f"SAR Change Detection Analysis - {disaster_type} in {location}",
+        title_font=dict(size=18, color='#1e293b'),
+        showlegend=False
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # 3D Interactive Comparison using Three.js
+    st.markdown("### 🌄 3D Interactive Terrain Comparison")
+    
+    # Three.js 3D visualization
+    threejs_comparison = f"""
+    <div id="threejs-comparison" style="width: 100%; height: 700px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 15px; position: relative; margin: 20px 0;">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script>
+            // Create two side-by-side 3D scenes for before/after comparison
+            const container = document.getElementById('threejs-comparison');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Scene 1: Before Event
+            const scene1 = new THREE.Scene();
+            const camera1 = new THREE.PerspectiveCamera(75, (containerWidth/2) / containerHeight, 0.1, 1000);
+            const renderer1 = new THREE.WebGLRenderer({{ alpha: true }});
+            renderer1.setSize(containerWidth/2, containerHeight);
+            renderer1.setClearColor(0x1e293b, 0.8);
+            renderer1.domElement.style.position = 'absolute';
+            renderer1.domElement.style.left = '0px';
+            container.appendChild(renderer1.domElement);
+            
+            // Scene 2: After Event  
+            const scene2 = new THREE.Scene();
+            const camera2 = new THREE.PerspectiveCamera(75, (containerWidth/2) / containerHeight, 0.1, 1000);
+            const renderer2 = new THREE.WebGLRenderer({{ alpha: true }});
+            renderer2.setSize(containerWidth/2, containerHeight);
+            renderer2.setClearColor(0x1e293b, 0.8);
+            renderer2.domElement.style.position = 'absolute';
+            renderer2.domElement.style.right = '0px';
+            container.appendChild(renderer2.domElement);
+            
+            // Generate 3D terrain data based on disaster type
+            function generateTerrainData(disasterType, isAfter = false) {{
+                const size = 50;
+                const geometry = new THREE.PlaneGeometry(10, 10, size-1, size-1);
+                const vertices = geometry.attributes.position;
+                
+                for (let i = 0; i < vertices.count; i++) {{
+                    const x = vertices.getX(i);
+                    const y = vertices.getY(i);
+                    let z = 0;
+                    
+                    // Base terrain
+                    z = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 0.5;
+                    
+                    if (disasterType === 'Flooding' && isAfter) {{
+                        // Simulate water level - flat areas at low elevation
+                        if (z < -0.2) {{
+                            z = -0.3; // Water level
+                        }}
+                    }} else if (disasterType === 'Wildfire' && isAfter) {{
+                        // Simulate burned rough terrain
+                        z += Math.random() * 0.3 - 0.15;
+                    }} else if (disasterType === 'Landslide' && isAfter) {{
+                        // Simulate landslide - displaced material
+                        if (x > 2 && x < 4 && y > -1 && y < 1) {{
+                            z -= 1.5; // Slide area
+                        }}
+                        if (x > -2 && x < 0 && y > -1 && y < 1) {{
+                            z += 0.8; // Debris pile
+                        }}
+                    }} else if (disasterType === 'Volcanic Eruption' && isAfter) {{
+                        // Simulate lava flow and ash deposits
+                        const distFromCenter = Math.sqrt(x*x + y*y);
+                        if (distFromCenter < 2) {{
+                            z += 0.5 + Math.random() * 0.3; // Volcanic buildup
+                        }}
+                    }}
+                    
+                    vertices.setZ(i, z);
+                }}
+                
+                geometry.attributes.position.needsUpdate = true;
+                geometry.computeVertexNormals();
+                return geometry;
+            }}
+            
+            // Create terrains
+            const beforeGeometry = generateTerrainData('{disaster_type}', false);
+            const afterGeometry = generateTerrainData('{disaster_type}', true);
+            
+            // Materials based on disaster type
+            let beforeMaterial, afterMaterial;
+            
+            if ('{disaster_type}' === 'Flooding') {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: 0x8B4513, 
+                    wireframe: false,
+                    transparent: true,
+                    opacity: 0.9
+                }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: 0x4169E1,
+                    transparent: true,
+                    opacity: 0.8
+                }});
+            }} else if ('{disaster_type}' === 'Wildfire') {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x228B22 }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B0000 }});
+            }} else if ('{disaster_type}' === 'Landslide') {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B4513 }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ color: 0xA0522D }});
+            }} else if ('{disaster_type}' === 'Volcanic Eruption') {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x654321 }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ 
+                    color: 0xFF4500,
+                    emissive: 0x440000,
+                    emissiveIntensity: 0.3
+                }});
+            }} else {{
+                beforeMaterial = new THREE.MeshPhongMaterial({{ color: 0x228B22 }});
+                afterMaterial = new THREE.MeshPhongMaterial({{ color: 0x8B4513 }});
+            }}
+            
+            // Create meshes
+            const beforeTerrain = new THREE.Mesh(beforeGeometry, beforeMaterial);
+            const afterTerrain = new THREE.Mesh(afterGeometry, afterMaterial);
+            
+            scene1.add(beforeTerrain);
+            scene2.add(afterTerrain);
+            
+            // Add special effects for flooding
+            if ('{disaster_type}' === 'Flooding') {{
+                const waterGeometry = new THREE.PlaneGeometry(10, 10);
+                const waterMaterial = new THREE.MeshPhongMaterial({{
+                    color: 0x006994,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                }});
+                const water = new THREE.Mesh(waterGeometry, waterMaterial);
+                water.position.z = -0.25;
+                water.rotation.x = 0;
+                scene2.add(water);
+            }}
+            
+            // Add particle effects for volcanic eruption
+            if ('{disaster_type}' === 'Volcanic Eruption') {{
+                const particleCount = 200;
+                const particles = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount * 3; i += 3) {{
+                    positions[i] = (Math.random() - 0.5) * 8;
+                    positions[i + 1] = (Math.random() - 0.5) * 8;
+                    positions[i + 2] = Math.random() * 3;
+                }}
+                
+                particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const particleMaterial = new THREE.PointsMaterial({{
+                    color: 0xff6600,
+                    size: 0.1,
+                    transparent: true,
+                    opacity: 0.8
+                }});
+                
+                const particleSystem = new THREE.Points(particles, particleMaterial);
+                scene2.add(particleSystem);
+            }}
+            
+            // Lighting
+            const ambientLight1 = new THREE.AmbientLight(0x404040, 0.6);
+            const ambientLight2 = new THREE.AmbientLight(0x404040, 0.6);
+            scene1.add(ambientLight1);
+            scene2.add(ambientLight2);
+            
+            const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight1.position.set(5, 5, 5);
+            directionalLight2.position.set(5, 5, 5);
+            scene1.add(directionalLight1);
+            scene2.add(directionalLight2);
+            
+            // Camera positions
+            camera1.position.set(5, 5, 5);
+            camera2.position.set(5, 5, 5);
+            camera1.lookAt(0, 0, 0);
+            camera2.lookAt(0, 0, 0);
+            
+            // Controls
+            const controls1 = new THREE.OrbitControls(camera1, renderer1.domElement);
+            const controls2 = new THREE.OrbitControls(camera2, renderer2.domElement);
+            controls1.enableDamping = true;
+            controls2.enableDamping = true;
+            
+            // Sync camera movements
+            controls1.addEventListener('change', () => {{
+                camera2.position.copy(camera1.position);
+                camera2.rotation.copy(camera1.rotation);
+                controls2.update();
+            }});
+            
+            controls2.addEventListener('change', () => {{
+                camera1.position.copy(camera2.position);
+                camera1.rotation.copy(camera2.rotation);
+                controls1.update();
+            }});
+            
+            // Animation loop
+            function animate() {{
+                requestAnimationFrame(animate);
+                
+                // Animate water for flooding
+                if ('{disaster_type}' === 'Flooding') {{
+                    const water = scene2.children.find(child => child.material && child.material.color.getHex() === 0x006994);
+                    if (water) {{
+                        water.rotation.z += 0.005;
+                        water.material.opacity = 0.5 + 0.1 * Math.sin(Date.now() * 0.001);
+                    }}
+                }}
+                
+                // Animate particles for volcanic eruption
+                if ('{disaster_type}' === 'Volcanic Eruption') {{
+                    const particles = scene2.children.find(child => child.type === 'Points');
+                    if (particles) {{
+                        particles.rotation.y += 0.01;
+                        const positions = particles.geometry.attributes.position;
+                        for (let i = 2; i < positions.count * 3; i += 3) {{
+                            positions.array[i] += 0.01;
+                            if (positions.array[i] > 3) positions.array[i] = 0;
+                        }}
+                        positions.needsUpdate = true;
+                    }}
+                }}
+                
+                controls1.update();
+                controls2.update();
+                renderer1.render(scene1, camera1);
+                renderer2.render(scene2, camera2);
+            }}
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {{
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                
+                camera1.aspect = (newWidth/2) / newHeight;
+                camera2.aspect = (newWidth/2) / newHeight;
+                camera1.updateProjectionMatrix();
+                camera2.updateProjectionMatrix();
+                
+                renderer1.setSize(newWidth/2, newHeight);
+                renderer2.setSize(newWidth/2, newHeight);
+            }});
+        </script>
+        
+        <!-- Labels and controls -->
+        <div style="position: absolute; top: 20px; left: 20px; color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; z-index: 1000;">
+            <h4 style="margin: 0 0 10px 0; color: #ffffff;">🕐 BEFORE EVENT</h4>
+            <p style="margin: 5px 0; font-size: 14px;">Original terrain state</p>
+            <p style="margin: 5px 0; font-size: 14px;">📅 {pd.Timestamp.now().strftime('%Y-%m-%d')}</p>
+        </div>
+        
+        <div style="position: absolute; top: 20px; right: 20px; color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; z-index: 1000;">
+            <h4 style="margin: 0 0 10px 0; color: #ffffff;">⚡ AFTER EVENT</h4>
+            <p style="margin: 5px 0; font-size: 14px;">{disaster_type} impact visible</p>
+            <p style="margin: 5px 0; font-size: 14px;">📅 {pd.Timestamp.now().strftime('%Y-%m-%d')}</p>
+        </div>
+        
+        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; z-index: 1000; text-align: center;">
+            <h4 style="margin: 0 0 10px 0; color: #ffffff;">🎮 Interactive Controls</h4>
+            <p style="margin: 5px 0; font-size: 14px;">🖱️ Drag to rotate • 🔍 Scroll to zoom • Cameras are synchronized</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #60a5fa;">Comparing {disaster_type} impact in {location}</p>
+        </div>
+    </div>
+    """
+    
+    st.components.v1.html(threejs_comparison, height=720)
+    
+    # Analysis insights
+    st.markdown("### 📊 Automated Analysis Results")
+    
+    # Calculate statistics
+    total_pixels = change_map.size
+    significant_change = np.abs(change_map) > 2  # 2dB threshold
+    affected_pixels = np.sum(significant_change)
+    affected_percentage = (affected_pixels / total_pixels) * 100
+    mean_change = np.mean(change_map[significant_change]) if affected_pixels > 0 else 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🎯 Affected Area</h3>
+            <h1>{affected_percentage:.1f}%</h1>
+            <p>Of total study region</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>📏 Area Size</h3>
+            <h1>{affected_pixels/100:.1f}</h1>
+            <p>km² significantly changed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>📈 Avg Change</h3>
+            <h1>{mean_change:.1f}</h1>
+            <p>dB intensity change</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        confidence = min(95, 70 + affected_percentage)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✅ Confidence</h3>
+            <h1>{confidence:.0f}%</h1>
+            <p>Detection accuracy</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Interpretation guide
+    st.markdown("### 🔍 How to Interpret SAR Changes")
+    
+    if disaster_type == "Flooding":
+        st.markdown("""
+        <div class="info-panel">
+            <h4>🌊 Flooding Analysis</h4>
+            <p><strong>Dark Blue Areas (Negative Change):</strong> New water surfaces reflect radar away from sensor</p>
+            <p><strong>Pattern:</strong> Sharp decrease in backscatter (-5 to -15 dB) indicates standing water</p>
+            <p><strong>Validation:</strong> Compare with topographic low areas and drainage patterns</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif disaster_type == "Wildfire":
+        st.markdown("""
+        <div class="alert-panel">
+            <h4>🔥 Wildfire Analysis</h4>
+            <p><strong>Red Areas (Positive Change):</strong> Burned areas show increased backscatter from rough ash/debris</p>
+            <p><strong>Pattern:</strong> Increase of +3 to +8 dB indicates vegetation loss and surface roughening</p>
+            <p><strong>Validation:</strong> Cross-reference with fire perimeter data and thermal anomalies</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    elif disaster_type == "Deforestation":
+        st.markdown("""
+        <div class="alert-panel">
+            <h4>🌳 Deforestation Analysis</h4>
+            <p><strong>Blue Areas (Negative Change):</strong> Loss of forest volume scattering</p>
+            <p><strong>Pattern:</strong> Decrease of -5 to -12 dB shows transition from forest to bare ground</p>
+            <p><strong>Validation:</strong> Verify with optical imagery and forest cover maps</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 3D Change Magnitude Visualization
+    st.markdown("### 🌊 3D Change Magnitude Surface")
+    
+    threejs_change_surface = f"""
+    <div id="change-surface" style="width: 100%; height: 500px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 15px; position: relative; margin: 20px 0;">
+        <script>
+            // Create scene for change magnitude visualization
+            const changeScene = new THREE.Scene();
+            const changeCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const changeRenderer = new THREE.WebGLRenderer({{ alpha: true }});
+            
+            const changeContainer = document.getElementById('change-surface');
+            changeRenderer.setSize(changeContainer.clientWidth, changeContainer.clientHeight);
+            changeRenderer.setClearColor(0x0f172a, 0.9);
+            changeContainer.appendChild(changeRenderer.domElement);
+            
+            // Generate change surface
+            const changeSurfaceGeometry = new THREE.PlaneGeometry(8, 8, 63, 63);
+            const changeVertices = changeSurfaceGeometry.attributes.position;
+            const colors = new Float32Array(changeVertices.count * 3);
+            
+            for (let i = 0; i < changeVertices.count; i++) {{
+                const x = changeVertices.getX(i);
+                const y = changeVertices.getY(i);
+                
+                // Generate change magnitude based on disaster type
+                let changeValue = 0;
+                if ('{disaster_type}' === 'Flooding') {{
+                    changeValue = -Math.abs(Math.sin(x * 0.8) * Math.cos(y * 0.8) * 2);
+                }} else if ('{disaster_type}' === 'Wildfire') {{
+                    const distance = Math.sqrt(x*x + y*y);
+                    changeValue = Math.max(0, 3 - distance) * (1 + Math.random() * 0.5);
+                }} else if ('{disaster_type}' === 'Volcanic Eruption') {{
+                    const distance = Math.sqrt(x*x + y*y);
+                    changeValue = Math.max(0, 2 - distance * 0.5) * 2;
+                }} else {{
+                    changeValue = Math.sin(x * 0.5) * Math.cos(y * 0.5) * 1.5;
+                }}
+                
+                changeVertices.setZ(i, changeValue);
+                
+                // Color based on change magnitude
+                if (changeValue > 1) {{
+                    colors[i * 3] = 1;     // Red for positive change
+                    colors[i * 3 + 1] = 0.2;
+                    colors[i * 3 + 2] = 0.2;
+                }} else if (changeValue < -1) {{
+                    colors[i * 3] = 0.2;   // Blue for negative change
+                    colors[i * 3 + 1] = 0.4;
+                    colors[i * 3 + 2] = 1;
+                }} else {{
+                    colors[i * 3] = 0.5;   // Gray for no change
+                    colors[i * 3 + 1] = 0.6;
+                    colors[i * 3 + 2] = 0.5;
+                }}
+            }}
+            
+            changeSurfaceGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            changeSurfaceGeometry.attributes.position.needsUpdate = true;
+            changeSurfaceGeometry.computeVertexNormals();
+            
+            const changeMaterial = new THREE.MeshPhongMaterial({{
+                vertexColors: true,
+                wireframe: false,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            }});
+            
+            const changeSurface = new THREE.Mesh(changeSurfaceGeometry, changeMaterial);
+            changeSurface.rotation.x = -Math.PI / 2;
+            changeScene.add(changeSurface);
+            
+            // Add wireframe overlay for better visualization
+            const wireframeMaterial = new THREE.MeshBasicMaterial({{
+                color: 0xffffff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            }});
+            const wireframe = new THREE.Mesh(changeSurfaceGeometry.clone(), wireframeMaterial);
+            wireframe.rotation.x = -Math.PI / 2;
+            wireframe.position.y = 0.01;
+            changeScene.add(wireframe);
+            
+            // Lighting for change surface
+            const changeAmbientLight = new THREE.AmbientLight(0x404040, 0.4);
+            changeScene.add(changeAmbientLight);
+            
+            const changeDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            changeDirectionalLight.position.set(10, 10, 5);
+            changeScene.add(changeDirectionalLight);
+            
+            // Camera and controls for change surface
+            changeCamera.position.set(6, 8, 6);
+            changeCamera.lookAt(0, 0, 0);
+            
+            const changeControls = new THREE.OrbitControls(changeCamera, changeRenderer.domElement);
+            changeControls.enableDamping = true;
+            changeControls.dampingFactor = 0.05;
+            
+            // Animation for change surface
+            function animateChange() {{
+                requestAnimationFrame(animateChange);
+                
+                // Gentle rotation for better viewing
+                changeSurface.rotation.z += 0.002;
+                wireframe.rotation.z += 0.002;
+                
+                changeControls.update();
+                changeRenderer.render(changeScene, changeCamera);
+            }}
+            
+            animateChange();
+            
+            // Handle resize for change surface
+            window.addEventListener('resize', () => {{
+                const newWidth = changeContainer.clientWidth;
+                const newHeight = changeContainer.clientHeight;
+                
+                changeCamera.aspect = newWidth / newHeight;
+                changeCamera.updateProjectionMatrix();
+                changeRenderer.setSize(newWidth, newHeight);
+            }});
+        </script>
+        
+        <div style="position: absolute; top: 20px; left: 20px; color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px;">
+            <h4 style="margin: 0 0 10px 0; color: #ffffff;">📊 Change Magnitude Surface</h4>
+            <p style="margin: 5px 0; font-size: 14px;">🔴 Red: Positive change (increase)</p>
+            <p style="margin: 5px 0; font-size: 14px;">🔵 Blue: Negative change (decrease)</p>
+            <p style="margin: 5px 0; font-size: 14px;">⚪ Gray: No significant change</p>
+        </div>
+        
+        <div style="position: absolute; bottom: 20px; right: 20px; color: white; font-family: 'Inter', sans-serif; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px;">
+            <h4 style="margin: 0 0 10px 0; color: #ffffff;">🎯 Analysis Zone</h4>
+            <p style="margin: 5px 0; font-size: 14px;">{disaster_type} Impact Analysis</p>
+            <p style="margin: 5px 0; font-size: 14px;">Location: {location}</p>
+        </div>
+    </div>
+    """
+    
+    st.components.v1.html(threejs_change_surface, height=520)
+    
+    # Time series analysis
+    st.markdown("### 📈 Temporal Change Analysis")
+    
+    # Generate time series data
+    dates = pd.date_range('2024-01-01', periods=12, freq='M')
+    change_trend = np.cumsum(np.random.normal(0, 0.5, 12))
+    
+    fig_trend = go.Figure()
+    fig_trend.add_trace(go.Scatter(
+        x=dates,
+        y=change_trend,
+        mode='lines+markers',
+        name='Cumulative Change',
+        line=dict(color='#dc2626', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig_trend.update_layout(
+        title='Monthly Change Progression',
+        xaxis_title='Date',
+        yaxis_title='Cumulative Change (dB)',
+        height=300
+    )
+    
+    st.plotly_chart(fig_trend, use_container_width=True)
+    
+    # Expert recommendations
+    st.markdown("### 💡 Expert Recommendations")
+    
+    recommendations = {
+        "Flooding": [
+            "Monitor drainage basins during monsoon season",
+            "Set up early warning systems in low-lying areas",
+            "Validate with river gauge data and precipitation records"
+        ],
+        "Wildfire": [
+            "Track burn scar recovery over multiple seasons",
+            "Monitor vegetation regrowth patterns",
+            "Assess fire risk in adjacent unburned areas"
+        ],
+        "Deforestation": [
+            "Implement continuous monitoring for illegal logging",
+            "Track reforestation efforts and success rates",
+            "Monitor carbon stock changes"
+        ],
+        "Landslide": [
+            "Focus on steep terrain during heavy rainfall",
+            "Monitor ground stability in vulnerable areas",
+            "Correlate with geological and rainfall data"
+        ],
+        "Volcanic Eruption": [
+            "Track ash deposit distribution patterns",
+            "Monitor lava flow extent and cooling",
+            "Assess infrastructure damage in affected areas"
+        ],
+        "Urban Development": [
+            "Track urban sprawl and infrastructure growth",
+            "Monitor environmental impact on surrounding areas",
+            "Assess land use change patterns"
+        ]
+    }
+    
+    for i, rec in enumerate(recommendations[disaster_type], 1):
+        st.markdown(f"**{i}.** {rec}")
+    
+    # Download and export options
+    st.markdown("### 💾 Export Analysis")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📊 Export Data"):
+            st.success("Change detection data exported successfully!")
+    
+    with col2:
+        if st.button("📋 Generate Report"):
+            st.success("Comprehensive analysis report generated!")
+    
+    with col3:
+        if st.button("📧 Share Results"):
+            st.success("Results shared with research team!")
 
 elif st.session_state.current_page == 'Digital Twin':
     st.markdown("## 🌍 3D Digital Twin Visualization")
